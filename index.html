@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>小饭馆</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 40px;
+            background-color: #f5f5f5;
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: #fff;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        #uploadedImage {
+            max-width: 100%;
+            margin-top: 20px;
+            display: none;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        #convertButton {
+            margin-top: 20px;
+            padding: 10px 20px;
+            background-color: #4285f4;
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        #convertButton:hover {
+            background-color: #357ae8;
+        }
+        #progress {
+            margin-top: 20px;
+            height: 20px;
+            background-color: #e0e0e0;
+            border-radius: 10px;
+            overflow: hidden;
+            display: none;
+        }
+        #progressBar {
+            height: 100%;
+            width: 0;
+            background-color: #76c7c0;
+            transition: width 0.3s;
+        }
+        #extractedText {
+            margin-top: 20px;
+            white-space: pre-wrap;
+            background: #f9f9f9;
+            padding: 15px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+            min-height: 100px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>小饭馆</h1>
+        <input type="file" id="imageUpload" accept="image/*">
+        <img id="uploadedImage" src="#" alt="上传的图片">
+        <button id="convertButton">开始转换</button>
+        <div id="progress">
+            <div id="progressBar"></div>
+        </div>
+        <h2>Magic!!!：</h2>
+        <div id="extractedText"></div>
+    </div>
+
+    <!-- 引入Tesseract.js -->
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@2/dist/tesseract.min.js"></script>
+    <script>
+        const imageUpload = document.getElementById('imageUpload');
+        const uploadedImage = document.getElementById('uploadedImage');
+        const convertButton = document.getElementById('convertButton');
+        const extractedText = document.getElementById('extractedText');
+        const progress = document.getElementById('progress');
+        const progressBar = document.getElementById('progressBar');
+
+        let imageSrc = '';
+
+        // 监听文件上传
+        imageUpload.addEventListener('change', function(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    imageSrc = e.target.result;
+                    uploadedImage.src = imageSrc;
+                    uploadedImage.style.display = 'block';
+                    extractedText.textContent = '';
+                }
+                reader.readAsDataURL(file);
+            }
+        });
+
+        // 监听转换按钮点击
+        convertButton.addEventListener('click', function() {
+            if (imageSrc === '') {
+                alert('请先上传一张图片。');
+                return;
+            }
+            extractedText.textContent = '';
+            progress.style.display = 'block';
+            progressBar.style.width = '0%';
+
+            Tesseract.recognize(
+                imageSrc,
+                'chi_sim', // 使用简体中文语言包
+                {
+                    logger: m => {
+                        if (m.status === 'recognizing text') {
+                            const progressPercent = Math.floor(m.progress * 100);
+                            progressBar.style.width = `${progressPercent}%`;
+                        }
+                    }
+                }
+            ).then(({ data: { text } }) => {
+                extractedText.textContent = text;
+                progress.style.display = 'none';
+            }).catch(err => {
+                extractedText.textContent = '识别出错：' + err.message;
+                progress.style.display = 'none';
+            });
+        });
+    </script>
+</body>
+</html>
