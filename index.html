@@ -1,20 +1,20 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>小饭馆</title>
+    <title>Image to Text Tool</title>
     <style>
         body {
             font-family: Arial, sans-serif;
             margin: 40px;
             background-color: #f5f5f5;
         }
-        h1 {
+        h1, h2 {
             text-align: center;
             color: #333;
         }
         .container {
-            max-width: 600px;
+            max-width: 900px;
             margin: 0 auto;
             background: #fff;
             padding: 30px;
@@ -28,7 +28,7 @@
             border: 1px solid #ddd;
             border-radius: 4px;
         }
-        #convertButton {
+        #convertButton, #viewReportButton {
             margin-top: 20px;
             padding: 10px 20px;
             background-color: #4285f4;
@@ -37,7 +37,7 @@
             border-radius: 4px;
             cursor: pointer;
         }
-        #convertButton:hover {
+        #convertButton:hover, #viewReportButton:hover {
             background-color: #357ae8;
         }
         #progress {
@@ -63,34 +63,117 @@
             border: 1px solid #ddd;
             min-height: 100px;
         }
+        #uploadStatus {
+            margin-top: 10px;
+            color: green;
+        }
+
+        /* Report Section Styles */
+        .report-section {
+            margin-top: 40px;
+        }
+        .report-section label {
+            margin-right: 10px;
+        }
+        .report-section input, .report-section select {
+            padding: 8px;
+            margin-right: 10px;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+        }
+        #reportDisplay {
+            margin-top: 20px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+        th, td {
+            padding: 8px;
+            border: 1px solid #ddd;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>小饭馆</h1>
+        <h1>Image to Text Tool</h1>
         <input type="file" id="imageUpload" accept="image/*">
-        <img id="uploadedImage" src="#" alt="上传的图片">
-        <button id="convertButton">开始转换</button>
+        <img id="uploadedImage" src="#" alt="Uploaded Image">
+        <button id="convertButton">Start Conversion</button>
         <div id="progress">
             <div id="progressBar"></div>
         </div>
-        <h2>Magic!!!：</h2>
+        <h2>Extracted Text:</h2>
         <div id="extractedText"></div>
+        <div id="uploadStatus"></div>
+
+        <!-- Report Section -->
+        <div class="report-section">
+            <h2>View Report</h2>
+            <div>
+                <label for="reportStartDate">Start Date:</label>
+                <input type="date" id="reportStartDate">
+                <label for="reportEndDate">End Date:</label>
+                <input type="date" id="reportEndDate">
+                <button id="viewReportButton">View Report</button>
+            </div>
+            <div id="reportDisplay">
+                <!-- Report will be displayed here -->
+            </div>
+        </div>
     </div>
 
-    <!-- 引入Tesseract.js -->
+    <!-- Include Tesseract.js -->
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@2/dist/tesseract.min.js"></script>
-    <script>
+    <!-- Firebase SDK -->
+    <script type="module">
+        // Import Firebase modules
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+        import { getAnalytics } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-analytics.js";
+        import { getDatabase, ref, push, update, query, orderByChild, startAt, endAt, get } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-database.js";
+
+        // Your Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyBl1ad2Fx_bQ20P4PRE8AQK3UyFxQS5PZM",
+            authDomain: "code-21586.firebaseapp.com",
+            databaseURL: "https://code-21586-default-rtdb.firebaseio.com",
+            projectId: "code-21586",
+            storageBucket: "code-21586.firebasestorage.app",
+            messagingSenderId: "769889649518",
+            appId: "1:769889649518:web:334ad90d2d08d7a921b77f",
+            measurementId: "G-PEQ5KRG0M0"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const analytics = getAnalytics(app);
+        const database = getDatabase(app);
+
+        // Get DOM elements
         const imageUpload = document.getElementById('imageUpload');
         const uploadedImage = document.getElementById('uploadedImage');
         const convertButton = document.getElementById('convertButton');
         const extractedText = document.getElementById('extractedText');
         const progress = document.getElementById('progress');
         const progressBar = document.getElementById('progressBar');
+        const uploadStatus = document.getElementById('uploadStatus');
+
+        // Report-related elements
+        const reportStartDate = document.getElementById('reportStartDate');
+        const reportEndDate = document.getElementById('reportEndDate');
+        const viewReportButton = document.getElementById('viewReportButton');
+        const reportDisplay = document.getElementById('reportDisplay');
 
         let imageSrc = '';
 
-        // 监听文件上传
+        // Listen for file upload
         imageUpload.addEventListener('change', function(event) {
             const file = event.target.files[0];
             if (file) {
@@ -100,24 +183,26 @@
                     uploadedImage.src = imageSrc;
                     uploadedImage.style.display = 'block';
                     extractedText.textContent = '';
+                    uploadStatus.textContent = '';
                 }
                 reader.readAsDataURL(file);
             }
         });
 
-        // 监听转换按钮点击
+        // Listen for convert button click
         convertButton.addEventListener('click', function() {
             if (imageSrc === '') {
-                alert('请先上传一张图片。');
+                alert('Please upload an image first.');
                 return;
             }
             extractedText.textContent = '';
+            uploadStatus.textContent = '';
             progress.style.display = 'block';
             progressBar.style.width = '0%';
 
             Tesseract.recognize(
                 imageSrc,
-                'chi_sim', // 使用简体中文语言包
+                'eng', // Use English language pack; change to 'chi_sim' if Shift report is in Chinese
                 {
                     logger: m => {
                         if (m.status === 'recognizing text') {
@@ -129,11 +214,265 @@
             ).then(({ data: { text } }) => {
                 extractedText.textContent = text;
                 progress.style.display = 'none';
+                // Upload text to Firebase
+                uploadTextToFirebase(text);
             }).catch(err => {
-                extractedText.textContent = '识别出错：' + err.message;
+                extractedText.textContent = 'Recognition error: ' + err.message;
                 progress.style.display = 'none';
             });
         });
+
+        // Function: Upload text to Firebase Realtime Database
+        function uploadTextToFirebase(text) {
+            if (text.trim() === '') {
+                uploadStatus.style.color = 'red';
+                uploadStatus.textContent = 'No text extracted, not uploaded.';
+                return;
+            }
+
+            const lines = text.split('\n').map(line => line.trim()).filter(line => line !== '');
+
+            if (lines.length === 0) {
+                uploadStatus.style.color = 'red';
+                uploadStatus.textContent = 'No valid text lines, not uploaded.';
+                return;
+            }
+
+            // Parse Shift Date from the text
+            const shiftOpenedLine = lines.find(line => line.startsWith('Shift opened'));
+            if (!shiftOpenedLine) {
+                uploadStatus.style.color = 'red';
+                uploadStatus.textContent = 'Shift opened date not found, not uploaded.';
+                return;
+            }
+
+            // Example format: "Shift opened: Owner 1 Jan 2025, 10:32"
+            const dateRegex = /Shift opened:\s*.*\s(\d{1,2}\s\w+\s\d{4}),\s*(\d{2}:\d{2})/;
+            const match = shiftOpenedLine.match(dateRegex);
+            if (!match) {
+                uploadStatus.style.color = 'red';
+                uploadStatus.textContent = 'Failed to parse shift date, not uploaded.';
+                return;
+            }
+
+            const dateString = match[1]; // e.g., "1 Jan 2025"
+            const timeString = match[2]; // e.g., "10:32"
+
+            // Combine date and time strings
+            const dateTimeString = `${dateString} ${timeString}`; // "1 Jan 2025 10:32"
+
+            // Parse to Date object
+            const shiftDate = new Date(dateTimeString);
+            if (isNaN(shiftDate)) {
+                uploadStatus.style.color = 'red';
+                uploadStatus.textContent = 'Invalid shift date format, not uploaded.';
+                return;
+            }
+
+            const shiftTimestamp = shiftDate.getTime();
+
+            const updates = {};
+
+            lines.forEach((line, index) => {
+                // Skip the "Shift opened" and "Shift closed" lines if desired
+                if (line.startsWith('Shift opened') || line.startsWith('Shift closed')) {
+                    return;
+                }
+
+                const entryTimestamp = shiftTimestamp + index; // Ensure unique timestamp per entry
+                const newTextRef = push(ref(database, 'extractedTexts'));
+                updates[newTextRef.key] = {
+                    text: line,
+                    timestamp: entryTimestamp
+                };
+            });
+
+            if (Object.keys(updates).length === 0) {
+                uploadStatus.style.color = 'red';
+                uploadStatus.textContent = 'No valid data to upload.';
+                return;
+            }
+
+            // Batch write to Firebase using 'update' to avoid overwriting data
+            update(ref(database, 'extractedTexts'), updates)
+                .then(() => {
+                    uploadStatus.style.color = 'green';
+                    uploadStatus.textContent = 'All text lines successfully uploaded to Firebase.';
+                })
+                .catch((error) => {
+                    uploadStatus.style.color = 'red';
+                    uploadStatus.textContent = 'Upload failed: ' + error.message;
+                });
+        }
+
+        // Listen for view report button click
+        viewReportButton.addEventListener('click', function() {
+            const startDateValue = reportStartDate.value;
+            const endDateValue = reportEndDate.value;
+
+            if (!startDateValue || !endDateValue) {
+                alert('Please select both start and end dates.');
+                return;
+            }
+
+            const startDate = new Date(startDateValue);
+            const endDate = new Date(endDateValue);
+
+            if (startDate > endDate) {
+                alert('Start date cannot be later than end date.');
+                return;
+            }
+
+            const startTimestamp = startDate.setHours(0, 0, 0, 0);
+            const endTimestamp = endDate.setHours(23, 59, 59, 999);
+
+            // Clear previous report
+            reportDisplay.innerHTML = '<p>Loading...</p>';
+
+            // Construct query
+            const extractedTextsRef = ref(database, 'extractedTexts');
+            const textsQuery = query(
+                extractedTextsRef,
+                orderByChild('timestamp'),
+                startAt(startTimestamp),
+                endAt(endTimestamp)
+            );
+
+            get(textsQuery).then((snapshot) => {
+                if (snapshot.exists()) {
+                    const data = snapshot.val();
+                    const entries = Object.values(data);
+                    displayReport(entries, startTimestamp, endTimestamp);
+                } else {
+                    reportDisplay.innerHTML = '<p>No data in this date range.</p>';
+                }
+            }).catch((error) => {
+                reportDisplay.innerHTML = `<p>Failed to load report: ${error.message}</p>`;
+            });
+        });
+
+        // Function: Display report and calculate totals
+        function displayReport(entries, startTimestamp, endTimestamp) {
+            // Sort entries by time
+            entries.sort((a, b) => a.timestamp - b.timestamp);
+
+            // Initialize totals
+            let totalCashPayments = 0;
+            let totalCashRefunds = 0;
+            let totalPaidOut = 0;
+            let totalSales = 0;
+            let totalRefunds = 0;
+            let totalDiscounts = 0;
+            let totalNetSales = 0;
+            let totalCash = 0;
+            let totalQR = 0;
+            let totalTaxes = 0;
+
+            // Create table
+            let html = `<h3>Report (${new Date(startTimestamp).toLocaleDateString('en-US')} - ${new Date(endTimestamp).toLocaleDateString('en-US')})</h3>`;
+            html += `<table>
+                        <thead>
+                            <tr>
+                                <th>Time</th>
+                                <th>Content</th>
+                            </tr>
+                        </thead>
+                        <tbody>`;
+
+            entries.forEach(entry => {
+                const date = new Date(entry.timestamp);
+                const formattedDate = date.toLocaleString('en-US', { hour12: false });
+                html += `<tr>
+                            <td>${formattedDate}</td>
+                            <td><pre>${escapeHtml(entry.text)}</pre></td>
+                         </tr>`;
+
+                // Calculate totals based on specific prefixes
+                const text = entry.text;
+                if (text.startsWith('Cash payments')) {
+                    const amount = parseFloat(text.split('RM')[1]);
+                    if (!isNaN(amount)) totalCashPayments += amount;
+                }
+                if (text.startsWith('Cash refunds')) {
+                    const amount = parseFloat(text.split('RM')[1]);
+                    if (!isNaN(amount)) totalCashRefunds += amount;
+                }
+                if (text.startsWith('Paid out')) {
+                    const amount = parseFloat(text.split('RM')[1]);
+                    if (!isNaN(amount)) totalPaidOut += amount;
+                }
+                if (text.startsWith('Gross sales')) {
+                    const amount = parseFloat(text.split('RM')[1]);
+                    if (!isNaN(amount)) totalSales += amount;
+                }
+                if (text.startsWith('Refunds')) {
+                    const amount = parseFloat(text.split('RM')[1]);
+                    if (!isNaN(amount)) totalRefunds += amount;
+                }
+                if (text.startsWith('Discounts')) {
+                    const amount = parseFloat(text.split('RM')[1]);
+                    if (!isNaN(amount)) totalDiscounts += amount;
+                }
+                if (text.startsWith('Net sales')) {
+                    const amount = parseFloat(text.split('RM')[1]);
+                    if (!isNaN(amount)) totalNetSales += amount;
+                }
+                if (text.startsWith('Cash ') && !text.startsWith('Cash payments') && !text.startsWith('Cash refunds')) { // Differentiate 'Cash payments' and 'Cash '
+                    const amount = parseFloat(text.split('RM')[1]);
+                    if (!isNaN(amount)) totalCash += amount;
+                }
+                if (text.startsWith('QR')) {
+                    const amount = parseFloat(text.split('RM')[1]);
+                    if (!isNaN(amount)) totalQR += amount;
+                }
+                if (text.startsWith('Taxes')) {
+                    const amount = parseFloat(text.split('RM')[1]);
+                    if (!isNaN(amount)) totalTaxes += amount;
+                }
+            });
+
+            html += `</tbody></table>`;
+
+            // Add totals
+            html += `<h3>Totals</h3>`;
+            html += `<p>Total Cash Payments: RM${totalCashPayments.toFixed(2)}</p>`;
+            html += `<p>Total Cash Refunds: RM${totalCashRefunds.toFixed(2)}</p>`;
+            html += `<p>Total Paid Out: RM${totalPaidOut.toFixed(2)}</p>`;
+            html += `<p>Total Gross Sales: RM${totalSales.toFixed(2)}</p>`;
+            html += `<p>Total Refunds: RM${totalRefunds.toFixed(2)}</p>`;
+            html += `<p>Total Discounts: RM${totalDiscounts.toFixed(2)}</p>`;
+            html += `<p>Total Net Sales: RM${totalNetSales.toFixed(2)}</p>`;
+            html += `<p>Total Cash: RM${totalCash.toFixed(2)}</p>`;
+            html += `<p>Total QR Payments: RM${totalQR.toFixed(2)}</p>`;
+            html += `<p>Total Taxes: RM${totalTaxes.toFixed(2)}</p>`;
+
+            reportDisplay.innerHTML = html;
+        }
+
+        // Function: Escape HTML special characters to prevent XSS
+        function escapeHtml(text) {
+            const map = {
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#039;'
+            };
+            return text.replace(/[&<>"']/g, function(m) { return map[m]; });
+        }
+
+        // Initialize date selectors
+        function initializeDateSelectors() {
+            const today = new Date();
+            const priorDate = new Date();
+            priorDate.setMonth(priorDate.getMonth() - 1); // Set to one month ago
+
+            reportStartDate.value = priorDate.toISOString().split('T')[0];
+            reportEndDate.value = today.toISOString().split('T')[0];
+        }
+
+        // Initialize selectors on page load
+        initializeDateSelectors();
     </script>
 </body>
 </html>
