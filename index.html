@@ -7,21 +7,50 @@
     <style>
         body {
             font-family: Arial, sans-serif;
-            margin: 20px;
+            margin: 0;
             background-color: #f5f5f5;
         }
-        h1, h2 {
-            text-align: center;
-            color: #333;
+        /* Navigation Bar Styles */
+        .navbar {
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            background-color: #4285f4;
+            padding: 10px 0;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
         }
+        .navbar button {
+            background-color: #4285f4;
+            color: #fff;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        .navbar button:hover {
+            background-color: #357ae8;
+        }
+
+        /* Container Styles */
         .container {
             max-width: 900px;
-            margin: 0 auto;
+            margin: 20px auto;
             background: #fff;
             padding: 20px;
             border-radius: 8px;
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
         }
+        /* Section Styles */
+        .section {
+            display: none;
+        }
+        .section.active {
+            display: block;
+        }
+        /* Upload Image Styles */
         #uploadedImage {
             max-width: 100%;
             margin-top: 20px;
@@ -29,21 +58,18 @@
             border: 1px solid #ddd;
             border-radius: 4px;
         }
-        #convertButton, #viewReportButton {
-            margin-top: 20px;
+        /* Convert and Upload Buttons */
+        #convertButton, #uploadButton {
             padding: 10px 20px;
             background-color: #4285f4;
             color: #fff;
             border: none;
             border-radius: 4px;
             cursor: pointer;
-            width: 100%; /* 适应移动设备 */
-            max-width: 200px;
-            margin-left: auto;
-            margin-right: auto;
-            display: block;
+            margin-top: 20px;
+            font-size: 16px;
         }
-        #convertButton:hover, #viewReportButton:hover {
+        #convertButton:hover, #uploadButton:hover {
             background-color: #357ae8;
         }
         #progress {
@@ -78,7 +104,7 @@
 
         /* Report Section Styles */
         .report-section {
-            margin-top: 40px;
+            margin-top: 20px;
         }
         .report-section label {
             margin-right: 10px;
@@ -103,7 +129,7 @@
 
         /* Uploaded Shifts Section Styles */
         .uploaded-shifts-section {
-            margin-top: 40px;
+            margin-top: 20px;
         }
         .uploaded-shifts-section ul {
             list-style-type: none;
@@ -123,9 +149,20 @@
             background-color: #357ae8;
         }
 
+        /* Shift Details Display */
+        #shiftDetailsDisplay {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #f9f9f9;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            min-height: 100px;
+            overflow-x: auto;
+        }
+
         /* Responsive Design */
         @media (max-width: 600px) {
-            .report-section label, .report-section input, .report-section select, #convertButton, #viewReportButton {
+            .report-section label, .report-section input, .report-section select, #convertButton, #uploadButton {
                 width: 100%;
                 margin-right: 0;
             }
@@ -184,38 +221,56 @@
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>Image to Text Tool</h1>
-        <input type="file" id="imageUpload" accept="image/*">
-        <img id="uploadedImage" src="#" alt="Uploaded Image">
-        <button id="convertButton">Start Conversion</button>
-        <div id="progress">
-            <div id="progressBar"></div>
-        </div>
-        <h2>Extracted Text:</h2>
-        <div id="extractedText"></div>
-        <div id="uploadStatus"></div>
+    <!-- Navigation Bar -->
+    <div class="navbar">
+        <button id="navUpload">上传图片</button>
+        <button id="navReport">查看报告</button>
+        <button id="navShifts">上传了的sales</button>
+    </div>
 
-        <!-- Report Section -->
-        <div class="report-section">
-            <h2>View Report</h2>
-            <div>
-                <label for="reportStartDate">Start Date:</label>
-                <input type="date" id="reportStartDate">
-                <label for="reportEndDate">End Date:</label>
-                <input type="date" id="reportEndDate">
-                <button id="viewReportButton">View Report</button>
+    <div class="container">
+        <!-- Upload and Convert Section -->
+        <div class="section active" id="uploadSection">
+            <h2>上传并转换图片</h2>
+            <input type="file" id="imageUpload" accept="image/*">
+            <img id="uploadedImage" src="#" alt="Uploaded Image">
+            <button id="convertButton">转换</button>
+            <div id="progress">
+                <div id="progressBar"></div>
             </div>
-            <div id="reportDisplay">
-                <!-- Report will be displayed here -->
+            <h2>提取的文本：</h2>
+            <div id="extractedText"></div>
+            <button id="uploadButton">上传提取的文本</button>
+            <div id="uploadStatus"></div> <!-- 将提示移到上传按钮下面 -->
+        </div>
+
+        <!-- View Report Section -->
+        <div class="section" id="reportSection">
+            <h2>查看报告</h2>
+            <div class="report-section">
+                <div>
+                    <label for="reportStartDate">开始日期：</label>
+                    <input type="date" id="reportStartDate">
+                    <label for="reportEndDate">结束日期：</label>
+                    <input type="date" id="reportEndDate">
+                    <button id="viewReportButton">查看报告</button>
+                </div>
+                <div id="reportDisplay">
+                    <!-- Report will be displayed here -->
+                </div>
             </div>
         </div>
 
         <!-- Uploaded Shifts Section -->
-        <div class="uploaded-shifts-section">
-            <h2>Uploaded Shifts</h2>
-            <div id="uploadedShiftsList">
-                <!-- 列表将在这里显示 -->
+        <div class="section" id="shiftsSection">
+            <h2>上传了的sales</h2>
+            <div class="uploaded-shifts-section">
+                <div id="uploadedShiftsList">
+                    <!-- 列表将在这里显示 -->
+                </div>
+            </div>
+            <div id="shiftDetailsDisplay">
+                <!-- 选中日期后显示当天的数据 -->
             </div>
         </div>
     </div>
@@ -247,6 +302,14 @@
         const database = getDatabase(app);
 
         // Get DOM elements
+        const uploadSection = document.getElementById('uploadSection');
+        const reportSection = document.getElementById('reportSection');
+        const shiftsSection = document.getElementById('shiftsSection');
+
+        const navUpload = document.getElementById('navUpload');
+        const navReport = document.getElementById('navReport');
+        const navShifts = document.getElementById('navShifts');
+
         const imageUpload = document.getElementById('imageUpload');
         const uploadedImage = document.getElementById('uploadedImage');
         const convertButton = document.getElementById('convertButton');
@@ -263,8 +326,29 @@
 
         // Uploaded Shifts elements
         const uploadedShiftsList = document.getElementById('uploadedShiftsList');
+        const shiftDetailsDisplay = document.getElementById('shiftDetailsDisplay'); // 新增用于显示详细数据
+
+        // Upload button
+        const uploadButton = document.getElementById('uploadButton');
 
         let imageSrc = '';
+        let extractedTextContent = '';
+
+        // Function to show a specific section and hide others
+        function showSection(section) {
+            // Hide all sections
+            uploadSection.classList.remove('active');
+            reportSection.classList.remove('active');
+            shiftsSection.classList.remove('active');
+
+            // Show the selected section
+            section.classList.add('active');
+        }
+
+        // Navigation bar button event listeners
+        navUpload.addEventListener('click', () => showSection(uploadSection));
+        navReport.addEventListener('click', () => showSection(reportSection));
+        navShifts.addEventListener('click', () => showSection(shiftsSection));
 
         // Listen for file upload
         imageUpload.addEventListener('change', function(event) {
@@ -275,8 +359,8 @@
                     imageSrc = e.target.result;
                     uploadedImage.src = imageSrc;
                     uploadedImage.style.display = 'block';
-                    extractedText.textContent = '';
                     uploadStatus.textContent = '';
+                    extractedText.textContent = '';
                 }
                 reader.readAsDataURL(file);
             }
@@ -285,7 +369,7 @@
         // Listen for convert button click
         convertButton.addEventListener('click', function() {
             if (imageSrc === '') {
-                alert('Please upload an image first.');
+                alert('请先上传一张图片。');
                 return;
             }
             extractedText.textContent = '';
@@ -295,7 +379,7 @@
 
             Tesseract.recognize(
                 imageSrc,
-                'eng', // 使用英语语言包；如果单据包含中文，改为 'chi_sim'
+                'chi_sim', // 使用英语语言包；如果单据包含中文，改为 'chi_sim'
                 {
                     logger: m => {
                         if (m.status === 'recognizing text') {
@@ -305,21 +389,29 @@
                     }
                 }
             ).then(({ data: { text } }) => {
+                extractedTextContent = text;
                 extractedText.textContent = text;
                 progress.style.display = 'none';
-                // 上传文本到Firebase
-                uploadShiftToFirebase(text);
             }).catch(err => {
-                extractedText.textContent = 'Recognition error: ' + err.message;
+                extractedText.textContent = '识别错误: ' + err.message;
                 progress.style.display = 'none';
             });
+        });
+
+        // Listen for upload button click
+        uploadButton.addEventListener('click', function() {
+            if (extractedTextContent.trim() === '') {
+                alert('请先转换图像中的文本。');
+                return;
+            }
+            uploadShiftToFirebase(extractedTextContent);
         });
 
         // Function: Upload Shift to Firebase Realtime Database
         function uploadShiftToFirebase(text) {
             if (text.trim() === '') {
                 uploadStatus.style.color = 'red';
-                uploadStatus.textContent = 'No text extracted, not uploaded.';
+                uploadStatus.textContent = '未提取到任何文本，未上传。';
                 return;
             }
 
@@ -327,7 +419,7 @@
 
             if (lines.length === 0) {
                 uploadStatus.style.color = 'red';
-                uploadStatus.textContent = 'No valid text lines, not uploaded.';
+                uploadStatus.textContent = '无有效文本行，未上传。';
                 return;
             }
 
@@ -335,7 +427,7 @@
             const shiftOpenedLine = lines.find(line => line.startsWith('Shift opened'));
             if (!shiftOpenedLine) {
                 uploadStatus.style.color = 'red';
-                uploadStatus.textContent = 'Shift opened date not found, not uploaded.';
+                uploadStatus.textContent = '未找到班次开启日期，未上传。';
                 return;
             }
 
@@ -344,7 +436,7 @@
             const match = shiftOpenedLine.match(dateRegex);
             if (!match) {
                 uploadStatus.style.color = 'red';
-                uploadStatus.textContent = 'Failed to parse shift date, not uploaded.';
+                uploadStatus.textContent = '解析班次日期失败，未上传。';
                 return;
             }
 
@@ -358,7 +450,7 @@
             const shiftDate = new Date(dateTimeString);
             if (isNaN(shiftDate)) {
                 uploadStatus.style.color = 'red';
-                uploadStatus.textContent = 'Invalid shift date format, not uploaded.';
+                uploadStatus.textContent = '无效的班次日期格式，未上传。';
                 return;
             }
 
@@ -376,13 +468,13 @@
             set(newShiftRef, shiftData)
                 .then(() => {
                     uploadStatus.style.color = 'green';
-                    uploadStatus.textContent = 'Shift successfully uploaded to Firebase.';
+                    uploadStatus.textContent = '班次已成功上传到 Firebase。';
                     // Reload the uploaded shifts list
                     loadUploadedShifts();
                 })
                 .catch((error) => {
                     uploadStatus.style.color = 'red';
-                    uploadStatus.textContent = 'Upload failed: ' + error.message;
+                    uploadStatus.textContent = '上传失败: ' + error.message;
                 });
         }
 
@@ -392,7 +484,7 @@
             const endDateValue = reportEndDate.value;
 
             if (!startDateValue || !endDateValue) {
-                alert('Please select both start and end dates.');
+                alert('请选择开始日期和结束日期。');
                 return;
             }
 
@@ -400,15 +492,12 @@
             const endDate = new Date(endDateValue);
 
             if (startDate > endDate) {
-                alert('Start date cannot be later than end date.');
+                alert('开始日期不能晚于结束日期。');
                 return;
             }
 
-            const startTimestamp = startDate.setHours(0, 0, 0, 0);
-            const endTimestamp = endDate.setHours(23, 59, 59, 999);
-
             // Clear previous report
-            reportDisplay.innerHTML = '<p>Loading...</p>';
+            reportDisplay.innerHTML = '<p>加载中...</p>';
 
             // Construct query
             const shiftsRef = ref(database, 'shifts');
@@ -425,10 +514,10 @@
                     const shifts = Object.values(data);
                     displayReport(shifts);
                 } else {
-                    reportDisplay.innerHTML = '<p>No data in this date range.</p>';
+                    reportDisplay.innerHTML = '<p>此日期范围内没有数据。</p>';
                 }
             }).catch((error) => {
-                reportDisplay.innerHTML = `<p>Failed to load report: ${error.message}</p>`;
+                reportDisplay.innerHTML = `<p>加载报告失败: ${error.message}</p>`;
             });
         });
 
@@ -447,11 +536,11 @@
             let totalTaxes = 0;
 
             // Create HTML content
-            let html = `<h3>Report (${new Date().toLocaleDateString('en-US')})</h3>`;
+            let html = `<h3>报告 (${new Date().toLocaleDateString('zh-CN')})</h3>`;
 
             shifts.forEach(shift => {
                 html += `<div class="report-entry">
-                            <h3>Shift Date: ${new Date(shift.date).toLocaleDateString('en-US')} at ${shift.time}</h3>
+                            <h3>班次日期: ${formatDateDMY(shift.date)} at ${shift.time}</h3>
                             <div class="shift-details">
                                 ${shift.lines.map(line => `<p>${escapeHtml(line)}</p>`).join('')}
                             </div>
@@ -504,7 +593,7 @@
             });
 
             // Add totals
-            html += `<h3>Totals</h3>`;
+            html += `<h3>总计</h3>`;
             html += `<p>Total Cash Payments: RM${totalCashPayments.toFixed(2)}</p>`;
             html += `<p>Total Cash Refunds: RM${totalCashRefunds.toFixed(2)}</p>`;
             html += `<p>Total Paid Out: RM${totalPaidOut.toFixed(2)}</p>`;
@@ -531,6 +620,15 @@
             return text.replace(/[&<>"']/g, function(m) { return map[m]; });
         }
 
+        // Function: Format date to "dd-mm-yyyy"
+        function formatDateDMY(dateStr) {
+            const dateObj = new Date(dateStr);
+            const day = String(dateObj.getDate()).padStart(2, '0');
+            const month = String(dateObj.getMonth() + 1).padStart(2, '0'); // 月份从0开始
+            const year = dateObj.getFullYear();
+            return `${day}-${month}-${year}`;
+        }
+
         // Initialize date selectors
         function initializeDateSelectors() {
             const today = new Date();
@@ -552,10 +650,10 @@
 
                     displayUploadedShifts(uniqueDates);
                 } else {
-                    uploadedShiftsList.innerHTML = '<p>No uploaded shifts found.</p>';
+                    uploadedShiftsList.innerHTML = '<p>还没upload</p>';
                 }
             }).catch((error) => {
-                uploadedShiftsList.innerHTML = `<p>Failed to load shifts: ${error.message}</p>`;
+                uploadedShiftsList.innerHTML = `<p>加载班次失败: ${error.message}</p>`;
             });
         }
 
@@ -563,14 +661,14 @@
         function displayUploadedShifts(dates) {
             const listContainer = uploadedShiftsList;
             if (dates.length === 0) {
-                listContainer.innerHTML = '<p>No uploaded shifts found.</p>';
+                listContainer.innerHTML = '<p>还没upload</p>';
                 return;
             }
 
             const ul = document.createElement('ul');
             dates.forEach(dateStr => {
                 const li = document.createElement('li');
-                li.textContent = new Date(dateStr).toLocaleDateString('en-US');
+                li.textContent = formatDateDMY(dateStr); // 使用格式化后的日期
                 li.dataset.date = dateStr; // 存储日期字符串以供点击时使用
                 li.addEventListener('click', () => {
                     displayShiftData(dateStr);
@@ -583,8 +681,9 @@
 
         // 显示特定日期的单据数据
         function displayShiftData(dateStr) {
+            console.log('Selected Date:', dateStr); // 日志
             // 显示加载状态
-            reportDisplay.innerHTML = '<p>Loading...</p>';
+            shiftDetailsDisplay.innerHTML = '<p>加载中...</p>';
 
             // 构造查询
             const shiftsRef = ref(database, 'shifts');
@@ -599,16 +698,104 @@
                 if (snapshot.exists()) {
                     const data = snapshot.val();
                     const shifts = Object.values(data);
-                    displayReport(shifts);
+                    displayShiftDetails(shifts);
                 } else {
-                    reportDisplay.innerHTML = '<p>No data for this date.</p>';
+                    shiftDetailsDisplay.innerHTML = '<p>此日期没有数据。</p>';
                 }
             }).catch((error) => {
-                reportDisplay.innerHTML = `<p>Failed to load data: ${error.message}</p>`;
+                console.error('加载数据失败:', error); // 添加日志
+                shiftDetailsDisplay.innerHTML = `<p>加载数据失败: ${error.message}</p>`;
             });
         }
 
-        // 在页面加载完成后加载上传的单据日期
+        // Function: Display shift details for a specific date
+        function displayShiftDetails(shifts) {
+            // Initialize totals
+            let totalCashPayments = 0;
+            let totalCashRefunds = 0;
+            let totalPaidOut = 0;
+            let totalSales = 0;
+            let totalRefunds = 0;
+            let totalDiscounts = 0;
+            let totalNetSales = 0;
+            let totalCash = 0;
+            let totalQR = 0;
+            let totalTaxes = 0;
+
+            // Create HTML content
+            let html = `<h3>班次报告 (${new Date().toLocaleDateString('zh-CN')})</h3>`;
+
+            shifts.forEach(shift => {
+                html += `<div class="report-entry">
+                            <h3>班次时间: ${shift.time}</h3>
+                            <div class="shift-details">
+                                ${shift.lines.map(line => `<p>${escapeHtml(line)}</p>`).join('')}
+                            </div>
+                        </div>`;
+
+                // Calculate totals based on specific prefixes
+                shift.lines.forEach(line => {
+                    const text = line;
+                    if (text.startsWith('Cash payments')) {
+                        const amount = parseFloat(text.split('RM')[1]);
+                        if (!isNaN(amount)) totalCashPayments += amount;
+                    }
+                    if (text.startsWith('Cash refunds')) {
+                        const amount = parseFloat(text.split('RM')[1]);
+                        if (!isNaN(amount)) totalCashRefunds += amount;
+                    }
+                    if (text.startsWith('Paid out')) {
+                        const amount = parseFloat(text.split('RM')[1]);
+                        if (!isNaN(amount)) totalPaidOut += amount;
+                    }
+                    if (text.startsWith('Gross sales')) {
+                        const amount = parseFloat(text.split('RM')[1]);
+                        if (!isNaN(amount)) totalSales += amount;
+                    }
+                    if (text.startsWith('Refunds')) {
+                        const amount = parseFloat(text.split('RM')[1]);
+                        if (!isNaN(amount)) totalRefunds += amount;
+                    }
+                    if (text.startsWith('Discounts')) {
+                        const amount = parseFloat(text.split('RM')[1]);
+                        if (!isNaN(amount)) totalDiscounts += amount;
+                    }
+                    if (text.startsWith('Net sales')) {
+                        const amount = parseFloat(text.split('RM')[1]);
+                        if (!isNaN(amount)) totalNetSales += amount;
+                    }
+                    if (text.startsWith('Cash ') && !text.startsWith('Cash payments') && !text.startsWith('Cash refunds')) { // 区分不同的Cash
+                        const amount = parseFloat(text.split('RM')[1]);
+                        if (!isNaN(amount)) totalCash += amount;
+                    }
+                    if (text.startsWith('QR')) {
+                        const amount = parseFloat(text.split('RM')[1]);
+                        if (!isNaN(amount)) totalQR += amount;
+                    }
+                    if (text.startsWith('Taxes')) {
+                        const amount = parseFloat(text.split('RM')[1]);
+                        if (!isNaN(amount)) totalTaxes += amount;
+                    }
+                });
+            });
+
+            // Add totals
+            html += `<h3>总计</h3>`;
+            html += `<p>Total Cash Payments: RM${totalCashPayments.toFixed(2)}</p>`;
+            html += `<p>Total Cash Refunds: RM${totalCashRefunds.toFixed(2)}</p>`;
+            html += `<p>Total Paid Out: RM${totalPaidOut.toFixed(2)}</p>`;
+            html += `<p>Total Gross Sales: RM${totalSales.toFixed(2)}</p>`;
+            html += `<p>Total Refunds: RM${totalRefunds.toFixed(2)}</p>`;
+            html += `<p>Total Discounts: RM${totalDiscounts.toFixed(2)}</p>`;
+            html += `<p>Total Net Sales: RM${totalNetSales.toFixed(2)}</p>`;
+            html += `<p>Total Cash: RM${totalCash.toFixed(2)}</p>`;
+            html += `<p>Total QR Payments: RM${totalQR.toFixed(2)}</p>`;
+            html += `<p>Total Taxes: RM${totalTaxes.toFixed(2)}</p>`;
+
+            shiftDetailsDisplay.innerHTML = html;
+        }
+
+        // 在页面加载完成后加载上传的单据日期和初始化日期选择器
         window.addEventListener('load', function() {
             initializeDateSelectors();
             loadUploadedShifts();
