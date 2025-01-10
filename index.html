@@ -3,10 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <title>Image to Text Tool</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"> <!-- 响应式设计 -->
     <style>
         body {
             font-family: Arial, sans-serif;
-            margin: 40px;
+            margin: 20px;
             background-color: #f5f5f5;
         }
         h1, h2 {
@@ -17,7 +18,7 @@
             max-width: 900px;
             margin: 0 auto;
             background: #fff;
-            padding: 30px;
+            padding: 20px;
             border-radius: 8px;
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
         }
@@ -36,6 +37,11 @@
             border: none;
             border-radius: 4px;
             cursor: pointer;
+            width: 100%; /* 适应移动设备 */
+            max-width: 200px;
+            margin-left: auto;
+            margin-right: auto;
+            display: block;
         }
         #convertButton:hover, #viewReportButton:hover {
             background-color: #357ae8;
@@ -62,10 +68,12 @@
             border-radius: 4px;
             border: 1px solid #ddd;
             min-height: 100px;
+            overflow-x: auto; /* 横向滚动 */
         }
         #uploadStatus {
             margin-top: 10px;
             color: green;
+            text-align: center;
         }
 
         /* Report Section Styles */
@@ -80,24 +88,98 @@
             margin-right: 10px;
             border-radius: 4px;
             border: 1px solid #ccc;
+            width: calc(50% - 20px);
+            box-sizing: border-box;
         }
         #reportDisplay {
             margin-top: 20px;
-            max-height: 400px;
+            max-height: 600px;
             overflow-y: auto;
-        }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 10px;
-        }
-        th, td {
-            padding: 8px;
+            padding: 10px;
+            background-color: #fff;
+            border-radius: 4px;
             border: 1px solid #ddd;
-            text-align: left;
         }
-        th {
-            background-color: #f2f2f2;
+
+        /* Uploaded Shifts Section Styles */
+        .uploaded-shifts-section {
+            margin-top: 40px;
+        }
+        .uploaded-shifts-section ul {
+            list-style-type: none;
+            padding: 0;
+        }
+        .uploaded-shifts-section li {
+            padding: 10px;
+            margin: 5px 0;
+            background-color: #4285f4;
+            color: #fff;
+            border-radius: 4px;
+            cursor: pointer;
+            text-align: center;
+            font-size: 16px;
+        }
+        .uploaded-shifts-section li:hover {
+            background-color: #357ae8;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 600px) {
+            .report-section label, .report-section input, .report-section select, #convertButton, #viewReportButton {
+                width: 100%;
+                margin-right: 0;
+            }
+            .report-section input, .report-section select {
+                margin-bottom: 10px;
+            }
+            th, td {
+                font-size: 12px;
+                padding: 6px;
+            }
+            .uploaded-shifts-section li {
+                font-size: 14px;
+                padding: 8px;
+            }
+            #extractedText {
+                font-size: 14px;
+                padding: 10px;
+            }
+        }
+
+        /* Mobile-friendly card layout for report entries */
+        .report-entry {
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 10px;
+            margin-bottom: 10px;
+            background-color: #f9f9f9;
+        }
+        .report-entry h3 {
+            margin: 0 0 10px 0;
+            font-size: 18px;
+            color: #333;
+        }
+        .report-entry p {
+            margin: 5px 0;
+            font-size: 14px;
+            color: #555;
+            white-space: pre-wrap;
+        }
+
+        /* Hide table on mobile and show card layout */
+        @media (max-width: 600px) {
+            table {
+                display: none;
+            }
+            .report-entry {
+                display: block;
+            }
+        }
+
+        @media (min-width: 601px) {
+            .report-entry {
+                display: none;
+            }
         }
     </style>
 </head>
@@ -128,6 +210,14 @@
                 <!-- Report will be displayed here -->
             </div>
         </div>
+
+        <!-- Uploaded Shifts Section -->
+        <div class="uploaded-shifts-section">
+            <h2>Uploaded Shifts</h2>
+            <div id="uploadedShiftsList">
+                <!-- 列表将在这里显示 -->
+            </div>
+        </div>
     </div>
 
     <!-- Include Tesseract.js -->
@@ -137,7 +227,7 @@
         // Import Firebase modules
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
         import { getAnalytics } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-analytics.js";
-        import { getDatabase, ref, push, update, query, orderByChild, startAt, endAt, get } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-database.js";
+        import { getDatabase, ref, push, set, query, orderByChild, startAt, endAt, get } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-database.js";
 
         // Your Firebase configuration
         const firebaseConfig = {
@@ -171,6 +261,9 @@
         const viewReportButton = document.getElementById('viewReportButton');
         const reportDisplay = document.getElementById('reportDisplay');
 
+        // Uploaded Shifts elements
+        const uploadedShiftsList = document.getElementById('uploadedShiftsList');
+
         let imageSrc = '';
 
         // Listen for file upload
@@ -202,7 +295,7 @@
 
             Tesseract.recognize(
                 imageSrc,
-                'eng', // Use English language pack; change to 'chi_sim' if Shift report is in Chinese
+                'eng', // 使用英语语言包；如果单据包含中文，改为 'chi_sim'
                 {
                     logger: m => {
                         if (m.status === 'recognizing text') {
@@ -214,16 +307,16 @@
             ).then(({ data: { text } }) => {
                 extractedText.textContent = text;
                 progress.style.display = 'none';
-                // Upload text to Firebase
-                uploadTextToFirebase(text);
+                // 上传文本到Firebase
+                uploadShiftToFirebase(text);
             }).catch(err => {
                 extractedText.textContent = 'Recognition error: ' + err.message;
                 progress.style.display = 'none';
             });
         });
 
-        // Function: Upload text to Firebase Realtime Database
-        function uploadTextToFirebase(text) {
+        // Function: Upload Shift to Firebase Realtime Database
+        function uploadShiftToFirebase(text) {
             if (text.trim() === '') {
                 uploadStatus.style.color = 'red';
                 uploadStatus.textContent = 'No text extracted, not uploaded.';
@@ -269,35 +362,23 @@
                 return;
             }
 
-            const shiftTimestamp = shiftDate.getTime();
+            const shiftDateISO = shiftDate.toISOString().split('T')[0]; // "2025-01-01"
 
-            const updates = {};
+            // Create a shift object
+            const shiftData = {
+                date: shiftDateISO,
+                time: timeString,
+                lines: lines.filter(line => !line.startsWith('Shift opened') && !line.startsWith('Shift closed'))
+            };
 
-            lines.forEach((line, index) => {
-                // Skip the "Shift opened" and "Shift closed" lines if desired
-                if (line.startsWith('Shift opened') || line.startsWith('Shift closed')) {
-                    return;
-                }
-
-                const entryTimestamp = shiftTimestamp + index; // Ensure unique timestamp per entry
-                const newTextRef = push(ref(database, 'extractedTexts'));
-                updates[newTextRef.key] = {
-                    text: line,
-                    timestamp: entryTimestamp
-                };
-            });
-
-            if (Object.keys(updates).length === 0) {
-                uploadStatus.style.color = 'red';
-                uploadStatus.textContent = 'No valid data to upload.';
-                return;
-            }
-
-            // Batch write to Firebase using 'update' to avoid overwriting data
-            update(ref(database, 'extractedTexts'), updates)
+            // Push the shift to Firebase
+            const newShiftRef = push(ref(database, 'shifts'));
+            set(newShiftRef, shiftData)
                 .then(() => {
                     uploadStatus.style.color = 'green';
-                    uploadStatus.textContent = 'All text lines successfully uploaded to Firebase.';
+                    uploadStatus.textContent = 'Shift successfully uploaded to Firebase.';
+                    // Reload the uploaded shifts list
+                    loadUploadedShifts();
                 })
                 .catch((error) => {
                     uploadStatus.style.color = 'red';
@@ -330,19 +411,19 @@
             reportDisplay.innerHTML = '<p>Loading...</p>';
 
             // Construct query
-            const extractedTextsRef = ref(database, 'extractedTexts');
-            const textsQuery = query(
-                extractedTextsRef,
-                orderByChild('timestamp'),
-                startAt(startTimestamp),
-                endAt(endTimestamp)
+            const shiftsRef = ref(database, 'shifts');
+            const shiftsQuery = query(
+                shiftsRef,
+                orderByChild('date'),
+                startAt(startDate.toISOString().split('T')[0]),
+                endAt(endDate.toISOString().split('T')[0])
             );
 
-            get(textsQuery).then((snapshot) => {
+            get(shiftsQuery).then((snapshot) => {
                 if (snapshot.exists()) {
                     const data = snapshot.val();
-                    const entries = Object.values(data);
-                    displayReport(entries, startTimestamp, endTimestamp);
+                    const shifts = Object.values(data);
+                    displayReport(shifts);
                 } else {
                     reportDisplay.innerHTML = '<p>No data in this date range.</p>';
                 }
@@ -352,10 +433,7 @@
         });
 
         // Function: Display report and calculate totals
-        function displayReport(entries, startTimestamp, endTimestamp) {
-            // Sort entries by time
-            entries.sort((a, b) => a.timestamp - b.timestamp);
-
+        function displayReport(shifts) {
             // Initialize totals
             let totalCashPayments = 0;
             let totalCashRefunds = 0;
@@ -368,70 +446,62 @@
             let totalQR = 0;
             let totalTaxes = 0;
 
-            // Create table
-            let html = `<h3>Report (${new Date(startTimestamp).toLocaleDateString('en-US')} - ${new Date(endTimestamp).toLocaleDateString('en-US')})</h3>`;
-            html += `<table>
-                        <thead>
-                            <tr>
-                                <th>Time</th>
-                                <th>Content</th>
-                            </tr>
-                        </thead>
-                        <tbody>`;
+            // Create HTML content
+            let html = `<h3>Report (${new Date().toLocaleDateString('en-US')})</h3>`;
 
-            entries.forEach(entry => {
-                const date = new Date(entry.timestamp);
-                const formattedDate = date.toLocaleString('en-US', { hour12: false });
-                html += `<tr>
-                            <td>${formattedDate}</td>
-                            <td><pre>${escapeHtml(entry.text)}</pre></td>
-                         </tr>`;
+            shifts.forEach(shift => {
+                html += `<div class="report-entry">
+                            <h3>Shift Date: ${new Date(shift.date).toLocaleDateString('en-US')} at ${shift.time}</h3>
+                            <div class="shift-details">
+                                ${shift.lines.map(line => `<p>${escapeHtml(line)}</p>`).join('')}
+                            </div>
+                        </div>`;
 
                 // Calculate totals based on specific prefixes
-                const text = entry.text;
-                if (text.startsWith('Cash payments')) {
-                    const amount = parseFloat(text.split('RM')[1]);
-                    if (!isNaN(amount)) totalCashPayments += amount;
-                }
-                if (text.startsWith('Cash refunds')) {
-                    const amount = parseFloat(text.split('RM')[1]);
-                    if (!isNaN(amount)) totalCashRefunds += amount;
-                }
-                if (text.startsWith('Paid out')) {
-                    const amount = parseFloat(text.split('RM')[1]);
-                    if (!isNaN(amount)) totalPaidOut += amount;
-                }
-                if (text.startsWith('Gross sales')) {
-                    const amount = parseFloat(text.split('RM')[1]);
-                    if (!isNaN(amount)) totalSales += amount;
-                }
-                if (text.startsWith('Refunds')) {
-                    const amount = parseFloat(text.split('RM')[1]);
-                    if (!isNaN(amount)) totalRefunds += amount;
-                }
-                if (text.startsWith('Discounts')) {
-                    const amount = parseFloat(text.split('RM')[1]);
-                    if (!isNaN(amount)) totalDiscounts += amount;
-                }
-                if (text.startsWith('Net sales')) {
-                    const amount = parseFloat(text.split('RM')[1]);
-                    if (!isNaN(amount)) totalNetSales += amount;
-                }
-                if (text.startsWith('Cash ') && !text.startsWith('Cash payments') && !text.startsWith('Cash refunds')) { // Differentiate 'Cash payments' and 'Cash '
-                    const amount = parseFloat(text.split('RM')[1]);
-                    if (!isNaN(amount)) totalCash += amount;
-                }
-                if (text.startsWith('QR')) {
-                    const amount = parseFloat(text.split('RM')[1]);
-                    if (!isNaN(amount)) totalQR += amount;
-                }
-                if (text.startsWith('Taxes')) {
-                    const amount = parseFloat(text.split('RM')[1]);
-                    if (!isNaN(amount)) totalTaxes += amount;
-                }
+                shift.lines.forEach(line => {
+                    const text = line;
+                    if (text.startsWith('Cash payments')) {
+                        const amount = parseFloat(text.split('RM')[1]);
+                        if (!isNaN(amount)) totalCashPayments += amount;
+                    }
+                    if (text.startsWith('Cash refunds')) {
+                        const amount = parseFloat(text.split('RM')[1]);
+                        if (!isNaN(amount)) totalCashRefunds += amount;
+                    }
+                    if (text.startsWith('Paid out')) {
+                        const amount = parseFloat(text.split('RM')[1]);
+                        if (!isNaN(amount)) totalPaidOut += amount;
+                    }
+                    if (text.startsWith('Gross sales')) {
+                        const amount = parseFloat(text.split('RM')[1]);
+                        if (!isNaN(amount)) totalSales += amount;
+                    }
+                    if (text.startsWith('Refunds')) {
+                        const amount = parseFloat(text.split('RM')[1]);
+                        if (!isNaN(amount)) totalRefunds += amount;
+                    }
+                    if (text.startsWith('Discounts')) {
+                        const amount = parseFloat(text.split('RM')[1]);
+                        if (!isNaN(amount)) totalDiscounts += amount;
+                    }
+                    if (text.startsWith('Net sales')) {
+                        const amount = parseFloat(text.split('RM')[1]);
+                        if (!isNaN(amount)) totalNetSales += amount;
+                    }
+                    if (text.startsWith('Cash ') && !text.startsWith('Cash payments') && !text.startsWith('Cash refunds')) { // 区分不同的Cash
+                        const amount = parseFloat(text.split('RM')[1]);
+                        if (!isNaN(amount)) totalCash += amount;
+                    }
+                    if (text.startsWith('QR')) {
+                        const amount = parseFloat(text.split('RM')[1]);
+                        if (!isNaN(amount)) totalQR += amount;
+                    }
+                    if (text.startsWith('Taxes')) {
+                        const amount = parseFloat(text.split('RM')[1]);
+                        if (!isNaN(amount)) totalTaxes += amount;
+                    }
+                });
             });
-
-            html += `</tbody></table>`;
 
             // Add totals
             html += `<h3>Totals</h3>`;
@@ -465,14 +535,84 @@
         function initializeDateSelectors() {
             const today = new Date();
             const priorDate = new Date();
-            priorDate.setMonth(priorDate.getMonth() - 1); // Set to one month ago
+            priorDate.setMonth(priorDate.getMonth() - 1); // 设置为一个月前
 
             reportStartDate.value = priorDate.toISOString().split('T')[0];
             reportEndDate.value = today.toISOString().split('T')[0];
         }
 
-        // Initialize selectors on page load
-        initializeDateSelectors();
+        // 获取并显示上传的单据日期
+        function loadUploadedShifts() {
+            const shiftsRef = ref(database, 'shifts');
+            get(shiftsRef).then((snapshot) => {
+                if (snapshot.exists()) {
+                    const data = snapshot.val();
+                    const shifts = Object.values(data);
+                    const uniqueDates = [...new Set(shifts.map(shift => shift.date))].sort((a, b) => new Date(b) - new Date(a)); // 按日期降序排序
+
+                    displayUploadedShifts(uniqueDates);
+                } else {
+                    uploadedShiftsList.innerHTML = '<p>No uploaded shifts found.</p>';
+                }
+            }).catch((error) => {
+                uploadedShiftsList.innerHTML = `<p>Failed to load shifts: ${error.message}</p>`;
+            });
+        }
+
+        // 显示上传的单据日期列表
+        function displayUploadedShifts(dates) {
+            const listContainer = uploadedShiftsList;
+            if (dates.length === 0) {
+                listContainer.innerHTML = '<p>No uploaded shifts found.</p>';
+                return;
+            }
+
+            const ul = document.createElement('ul');
+            dates.forEach(dateStr => {
+                const li = document.createElement('li');
+                li.textContent = new Date(dateStr).toLocaleDateString('en-US');
+                li.dataset.date = dateStr; // 存储日期字符串以供点击时使用
+                li.addEventListener('click', () => {
+                    displayShiftData(dateStr);
+                });
+                ul.appendChild(li);
+            });
+            listContainer.innerHTML = '';
+            listContainer.appendChild(ul);
+        }
+
+        // 显示特定日期的单据数据
+        function displayShiftData(dateStr) {
+            // 显示加载状态
+            reportDisplay.innerHTML = '<p>Loading...</p>';
+
+            // 构造查询
+            const shiftsRef = ref(database, 'shifts');
+            const shiftsQuery = query(
+                shiftsRef,
+                orderByChild('date'),
+                startAt(dateStr),
+                endAt(dateStr)
+            );
+
+            get(shiftsQuery).then((snapshot) => {
+                if (snapshot.exists()) {
+                    const data = snapshot.val();
+                    const shifts = Object.values(data);
+                    displayReport(shifts);
+                } else {
+                    reportDisplay.innerHTML = '<p>No data for this date.</p>';
+                }
+            }).catch((error) => {
+                reportDisplay.innerHTML = `<p>Failed to load data: ${error.message}</p>`;
+            });
+        }
+
+        // 在页面加载完成后加载上传的单据日期
+        window.addEventListener('load', function() {
+            initializeDateSelectors();
+            loadUploadedShifts();
+        });
     </script>
 </body>
 </html>
